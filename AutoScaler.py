@@ -103,10 +103,16 @@ class AutoScaler(object):
     def execute(self):
         # stop instances
         if len(self.stop_iids) > 0:
+            print 'stopping ' + str(len(self.stop_iids)) + ' instances: ',
+            for iid in self.stop_iids:
+                print iid,
+            print ''
             self.ec2ic.terminate(self.stop_iids)
             self.stop_iids = []
 
         # start instances
         if self.num_instances_to_start > 0:
+            print 'starting ' + str(self.num_instances_to_start) + ' instances...'
+            print ''
             self.ec2ic.run_instances(self.num_instances_to_start)
             self.num_instances_to_start = 0

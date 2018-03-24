@@ -1,7 +1,7 @@
 import boto3
 from botocore.exceptions import ClientError
 import time
-
+import requests
 
 class EC2InstanceController(object):
     # A client to manage Amazon EC2 instances
@@ -17,12 +17,12 @@ class EC2InstanceController(object):
         self.instance_type = 't2.micro'
 
         # key name
-        self.key_name = 'sg546key'
+        self.key_name = 'aws-ec2'
 
         # security groups
-        sg_default = 'sg-389dd947'
-        sg546 = 'sg-8db2f6f2'
-        self.security_group_ids = [sg_default, sg546]
+        # sg_default = 'sg-389dd947'
+        sg546 = 'sg-53097a2a'
+        self.security_group_ids = [sg546]
 
         # list of active instances
         self.starting_list = {}
@@ -30,8 +30,10 @@ class EC2InstanceController(object):
         self.idle_list = {}
 
     def run_instances(self, count):
-        # an instance is ready for you when it is in the running state
-        # this can be checked using describe instances
+        # define network iterface
+        net_int = {'AssociatePublicIpAddress' : True}
+        net_ints = [net_int]
+
         # do a dry run first to check permissions
         try:
             response = self.ec2.run_instances(ImageId=self.image_id, \
@@ -41,6 +43,7 @@ class EC2InstanceController(object):
                                               MaxCount=1, \
                                               Monitoring={'Enabled': False}, \
                                               SecurityGroupIds=self.security_group_ids, \
+                                              #NetworkInterfaces=net_ints, \
                                               DryRun=True)
         except ClientError as e:
             if 'DryRunOperation' not in str(e):
@@ -55,13 +58,16 @@ class EC2InstanceController(object):
                                               MaxCount=count, \
                                               Monitoring={'Enabled': False}, \
                                               SecurityGroupIds=self.security_group_ids, \
+                                              #NetworkInterfces=net_ints, \
                                               DryRun=False)
 
             for i in response['Instances']:
                 # define EC2Instance object
+                print(response['Instances'])
                 instance_id = i['InstanceId']
                 new_instance = EC2Instance(iid=instance_id, \
                                            privateIP=i['PrivateIpAddress'], \
+                                           publicIP=boto3.resource('ec2').Instance(instance_id).public_ip_address, \
                                            state='starting')
                 # add to starting list
                 self.starting_list[instance_id] = new_instance
@@ -123,14 +129,17 @@ class EC2InstanceController(object):
 class EC2Instance(object):
     # local object representation of ec2 instance
 
-    def __init__(self, iid, privateIP, state):
+    def __init__(self, iid, privateIP, publicIP, state):
         self.iid = iid
         self.privateIP = privateIP
+        self.publicIP = publicIP
         self.state = state
+        self.start_delay = 15
 
         self.idle_since = 0
         self.busy_since = 0
         self.starting_since = 0
+        self.started_then = 0
         self.avg_busy_time = 5.0
 
         self.prev_time = time.time()
@@ -147,13 +156,18 @@ class EC2Instance(object):
         # new state must be one of these: starting, idle, busy
 
         if self.state == 'starting':
-            response = self.ec2.describe_instance_status(InstanceIds=[self.iid])
-            state = response['InstanceStatuses'][0]['InstanceState']
+            state = boto3.resource('ec2').Instance(self.iid).state['Name']
             if state != 'running':
                 self.busy_since = 0
                 self.idle_since = 0
                 self.starting_since += sec_pulse
                 return
+            else:
+                self.started_then += sec_pulse
+                if self.started_then < self.start_delay:
+                    self.busy_since = 0
+                    self.idle_since = 0
+                    return
 
         state = self.check_busy()
         prev_state = self.state
@@ -172,5 +186,10 @@ class EC2Instance(object):
         return self.state
 
     def check_busy(self):
-        status = ''
+        req_url = self.publicIP + ":5001/cloudimagerecognition"
+        r = requests.get(req_url)
+        if str(r.text) == 'true':
+            status = 'busy'
+        else:
+            status = 'idle'
         return status
