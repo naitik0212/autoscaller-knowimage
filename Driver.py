@@ -1,7 +1,7 @@
 from AutoScaler import *
 import time
 
-_ami = 'ami-840016e4'
+_ami = 'ami-ce3422ae' # ami for backend-server-1
 _req_queue_url = 'https://sqs.us-west-1.amazonaws.com/791943463301/imagerecognition-request'
 _sleep_time = 0.1
 
