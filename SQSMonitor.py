@@ -14,4 +14,6 @@ class SQSMonitor(object):
     def num_messages(self):
         response = self.sqs.get_queue_attributes(QueueUrl=self.url, \
                                                  AttributeNames=['ApproximateNumberOfMessages'])
-        return int(response['Attributes']['ApproximateNumberOfMessages'])
+        num = response['Attributes']['ApproximateNumberOfMessages']
+        print 'Number of requests in SQS: ' + str(num)
+        return int(num)

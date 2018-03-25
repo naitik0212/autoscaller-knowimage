@@ -134,12 +134,12 @@ class EC2Instance(object):
         self.privateIP = privateIP
         self.publicIP = publicIP
         self.state = state
-        self.start_delay = 15
+        self.start_delay = 25
 
         self.idle_since = 0
         self.busy_since = 0
         self.starting_since = 0
-        self.started_then = 0
+        self.started_since = 0
         self.avg_busy_time = 5.0
 
         self.prev_time = time.time()
@@ -163,8 +163,9 @@ class EC2Instance(object):
                 self.starting_since += sec_pulse
                 return
             else:
-                self.started_then += sec_pulse
-                if self.started_then < self.start_delay:
+                print "waiting for spring boot on " + self.iid + "..."
+                self.started_since += sec_pulse
+                if self.started_since < self.start_delay:
                     self.busy_since = 0
                     self.idle_since = 0
                     return
@@ -186,10 +187,11 @@ class EC2Instance(object):
         return self.state
 
     def check_busy(self):
-        req_url = self.publicIP + ":5001/cloudimagerecognition"
+        req_url = "http://" + self.publicIP + ":5001/cloudimagerecognition"
         r = requests.get(req_url)
         if str(r.text) == 'true':
             status = 'busy'
         else:
             status = 'idle'
+        print "check_busy: " + status
         return status
