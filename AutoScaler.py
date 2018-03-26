@@ -14,9 +14,9 @@ class AutoScaler(object):
 
         # thresholds and parameters
         self.min_instances_allowed = 1
-        self.max_instances_allowed = 18
+        self.max_instances_allowed = 9
         self.max_pending_requests_allowed = 0
-        self.timeout_idle = 5
+        self.timeout_idle = 30
         self.time_idle_soon = 2.0
 
         # monitoring parameters
@@ -77,7 +77,7 @@ class AutoScaler(object):
 
         # compute number of instances required to meet the demand
         if self.num_pending_requests > self.max_pending_requests_allowed:
-            start_count = self.num_pending_requests - max_new_instances_allowed
+            start_count = self.num_pending_requests - self.num_instances_starting
         else:
             start_count = 0
 
