@@ -1,5 +1,6 @@
 from EC2instanceController import *
 from SQSMonitor import *
+import math
 
 
 class AutoScaler(object):
@@ -14,16 +15,18 @@ class AutoScaler(object):
 
         # thresholds and parameters
         self.min_instances_allowed = 1
-        self.max_instances_allowed = 9
+        self.max_instances_allowed = 18
         self.max_pending_requests_allowed = 0
-        self.timeout_idle = 30
-        self.time_idle_soon = 2.0
+        self.timeout_idle_total = 40
+        self.timeout_idle_since = 5
+        self.time_per_req = 5.0
+        self.start_time_total = 40.0
+        self.prediction_factor = 2
 
         # monitoring parameters
         self.num_pending_requests = 0
         self.num_instances_busy = 0
         self.num_instances_idle_now = 0
-        self.num_instances_idle_soon = 0
         self.num_instances_starting = 0
 
         # analyse and compute parameters
@@ -60,45 +63,46 @@ class AutoScaler(object):
         # read the number of idle instances
         self.num_instances_idle_now = len(self.ec2ic.idle_list)
 
-        # compute the number of instances that will soon become idle
-        self.num_instances_idle_soon = 0
-        busy_list = self.ec2ic.busy_list
-        for iid in busy_list:
-            curr = busy_list[iid]
-            if (float(curr.avg_busy_time - curr.busy_since) < self.time_idle_soon):
-                self.num_instances_idle_soon += 1
-
     def analyse(self):
-        # use monitoring parameters to compute instances to start/stop
+        # check the number of busy/idling instances
+        num_ready = self.num_instances_busy + self.num_instances_idle_now + 1
 
-        # calculate maximum number of new instances allowed to start
-        active_instances = self.num_instances_busy + self.num_instances_starting + self.num_instances_idle_now
-        max_new_instances_allowed = self.max_instances_allowed - active_instances
+        # predict the number of requests that can be served in next 40 sec
+        predicted = num_ready * (math.ceil(self.start_time_total / self.time_per_req))
 
-        # compute number of instances required to meet the demand
-        if self.num_pending_requests > self.max_pending_requests_allowed:
-            start_count = self.num_pending_requests - self.num_instances_starting
+        # check the number of starting instances and for each one, give their prediction
+        for iid in self.ec2ic.starting_list:
+            ins = self.ec2ic.starting_list[iid]
+            predicted += int(math.ceil(ins.starting_since / self.time_per_req))
+
+        # number of requests remaining to be handled in 40 sec is...
+        num_req_later = self.num_pending_requests - predicted
+
+        # calculate number of instances to start
+        if num_req_later > 0:
+            self.num_instances_to_start = num_req_later
         else:
-            start_count = 0
+            if predicted > (self.prediction_factor * self.num_pending_requests):
+                self.num_instances_to_start = 1
+            else:
+                self.num_instances_to_start = 0
 
-        # compute actual start count based on thresholds
-        if start_count < 0:
-            actual_start_count = 0
-        elif start_count > max_new_instances_allowed:
-            actual_start_count = max_new_instances_allowed
-        else:
-            actual_start_count = start_count
-
-        self.num_instances_to_start = actual_start_count
+        # validate with respect to threshold
+        max_new_starts_allowed = self.max_instances_allowed \
+                                 - (num_ready + self.num_instances_starting)
+        self.num_instances_to_start = min(self.num_instances_to_start, max_new_starts_allowed)
 
         # prepare a list of instances to be stopped
+        timeout_idle = int(math.ceil(self.timeout_idle_total / num_ready))
         idle_list = self.ec2ic.idle_list
         for iid in idle_list:
-            if idle_list[iid].idle_since >= self.timeout_idle:
-                if ((active_instances+actual_start_count)-len(self.stop_iids)) \
-                        <= self.min_instances_allowed:
-                    break
-                self.stop_iids.append(iid)
+            if idle_list[iid].idle_since >= self.timeout_idle_since:
+                if idle_list[iid].idle_total >= timeout_idle:
+                    if (num_ready-len(self.stop_iids)) \
+                            <= self.min_instances_allowed:
+                        break
+                    self.stop_iids.append(iid)
+
 
     def execute(self):
         # stop instances
@@ -116,3 +120,53 @@ class AutoScaler(object):
             print ''
             self.ec2ic.run_instances(self.num_instances_to_start)
             self.num_instances_to_start = 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        # # use monitoring parameters to compute instances to start/stop
+        #
+        # # calculate maximum number of new instances allowed to start
+        # active_instances = self.num_instances_busy + self.num_instances_starting + self.num_instances_idle_now
+        # max_new_instances_allowed = self.max_instances_allowed - active_instances
+        #
+        # # compute number of instances required to meet the demand
+        # if self.num_pending_requests > self.max_pending_requests_allowed:
+        #     start_count = self.num_pending_requests - self.num_instances_starting
+        # else:
+        #     start_count = 0
+        #
+        # # compute actual start count based on thresholds
+        # if start_count < 0:
+        #     actual_start_count = 0
+        # elif start_count > max_new_instances_allowed:
+        #     actual_start_count = max_new_instances_allowed
+        # else:
+        #     actual_start_count = start_count
+        #
+        # self.num_instances_to_start = actual_start_count
+        #

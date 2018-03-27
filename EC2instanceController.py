@@ -2,6 +2,8 @@ import boto3
 from botocore.exceptions import ClientError
 import time
 import requests
+import math
+
 
 class EC2InstanceController(object):
     # A client to manage Amazon EC2 instances
@@ -43,7 +45,6 @@ class EC2InstanceController(object):
                                               MaxCount=1, \
                                               Monitoring={'Enabled': False}, \
                                               SecurityGroupIds=self.security_group_ids, \
-                                              #NetworkInterfaces=net_ints, \
                                               DryRun=True)
         except ClientError as e:
             if 'DryRunOperation' not in str(e):
@@ -51,14 +52,16 @@ class EC2InstanceController(object):
 
         # dry run succeeded. Launch instances
         try:
+            tag = {'Key': 'Name', 'Value': 'backend-server-auto'}
+            TagSpecification = {'ResourceType':'instance', 'Tags':[tag]}
             response = self.ec2.run_instances(ImageId=self.image_id, \
                                               InstanceType=self.instance_type, \
                                               KeyName=self.key_name, \
                                               MinCount=count, \
                                               MaxCount=count, \
+                                              TagSpecifications=[TagSpecification], \
                                               Monitoring={'Enabled': False}, \
                                               SecurityGroupIds=self.security_group_ids, \
-                                              #NetworkInterfces=net_ints, \
                                               DryRun=False)
 
             for i in response['Instances']:
@@ -137,6 +140,7 @@ class EC2Instance(object):
         self.start_delay = 25
 
         self.idle_since = 0
+        self.idle_total = 0
         self.busy_since = 0
         self.starting_since = 0
         self.started_since = 0
@@ -147,11 +151,9 @@ class EC2Instance(object):
 
     def update_state(self):
         # generate seconds pulse
-        sec_pulse = 0
         curr_time = time.time()
-        if (curr_time - self.prev_time) >= 1.0:
-            sec_pulse = 1
-            self.prev_time = curr_time
+        sec_pulse = math.floor(curr_time-self.prev_time)
+        self.prev_time = curr_time
 
         # new state must be one of these: starting, idle, busy
 
@@ -164,6 +166,7 @@ class EC2Instance(object):
                 return
             else:
                 print "waiting for spring boot on " + self.iid + "..."
+                self.starting_since += sec_pulse
                 self.started_since += sec_pulse
                 if self.started_since < self.start_delay:
                     self.busy_since = 0
@@ -182,6 +185,7 @@ class EC2Instance(object):
             self.starting_since = 0
             self.busy_since = 0
             self.idle_since += sec_pulse
+            self.idle_total += sec_pulse
             self.state = state
 
         return self.state
@@ -193,5 +197,4 @@ class EC2Instance(object):
             status = 'busy'
         else:
             status = 'idle'
-        print "check_busy: " + status
         return status

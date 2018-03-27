@@ -6,4 +6,4 @@ sqs_obj = SQSMonitor(url)
 
 while(True):
     sqs_obj.num_messages()
-    time.sleep(1.0)
+    time.sleep(2.0)
