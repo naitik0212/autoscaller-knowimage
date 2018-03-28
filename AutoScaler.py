@@ -11,12 +11,12 @@ class AutoScaler(object):
 
         # thresholds and parameters
         self.min_instances_allowed = 1
-        self.max_instances_allowed = 19
+        self.max_instances_allowed = 18
         self.max_pending_requests_allowed = 0
         self.timeout_idle_total = 0
         self.timeout_idle_since = 0
         self.time_per_req = 4.5
-        self.start_time_total = 30.0
+        self.start_time_total = 40.0
         self.prediction_factor = 2
 
         # monitoring parameters
@@ -70,7 +70,7 @@ class AutoScaler(object):
         # check the number of busy/idling instances
         num_ready = self.num_instances_busy + self.num_instances_idle_now
 
-        self.num_instances_to_start = max(0, self.num_pending_requests - num_ready)
+        self.num_instances_to_start = max(0, self.num_pending_requests - num_ready - self.num_instances_starting)
 
         # validate with respect to threshold
         max_new_starts_allowed = self.max_instances_allowed - (num_ready + self.num_instances_starting)
@@ -143,35 +143,3 @@ class AutoScaler(object):
         #             self.num_instances_to_start = 1
         #         else:
         #             self.num_instances_to_start = 0
-
-
-
-
-
-
-
-
-
-
-        # # use monitoring parameters to compute instances to start/stop
-        #
-        # # calculate maximum number of new instances allowed to start
-        # active_instances = self.num_instances_busy + self.num_instances_starting + self.num_instances_idle_now
-        # max_new_instances_allowed = self.max_instances_allowed - active_instances
-        #
-        # # compute number of instances required to meet the demand
-        # if self.num_pending_requests > self.max_pending_requests_allowed:
-        #     start_count = self.num_pending_requests - self.num_instances_starting
-        # else:
-        #     start_count = 0
-        #
-        # # compute actual start count based on thresholds
-        # if start_count < 0:
-        #     actual_start_count = 0
-        # elif start_count > max_new_instances_allowed:
-        #     actual_start_count = max_new_instances_allowed
-        # else:
-        #     actual_start_count = start_count
-        #
-        # self.num_instances_to_start = actual_start_count
-        #

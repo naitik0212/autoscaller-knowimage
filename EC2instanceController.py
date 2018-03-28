@@ -156,7 +156,7 @@ class EC2Instance(object):
         self.privateIP = str(privateIP)
         self.publicIP = str(publicIP)
         self.state = state
-        self.start_delay = 15
+        self.start_delay = 25
 
         self.idle_since = 0
         self.idle_total = 0
@@ -210,17 +210,24 @@ class EC2Instance(object):
         return self.state
 
     def check_busy(self):
+        looper = True
+        num_iterations = 1
+        while(looper):
+            try:
+                if str(self.publicIP) == "":
+                    self.publicIP = str(boto3.resource('ec2').Instance(self.iid).public_ip_address)
+                req_url = "http://" + str(self.publicIP) + ":8080/cloudimagerecognition"
+                r = requests.request(method="GET", url = req_url, allow_redirects=False)
+                looper = False
+            except:
+                if str(self.publicIP) == "":
+                    print "check busy error: no public ip"
+                print "check busy connection error"
+                looper = True
+                num_iterations += 1
+                if num_iterations > 300:
+                    return 'idle'
 
-        try:
-            if str(self.publicIP) == "":
-                self.publicIP = str(boto3.resource('ec2').Instance(self.iid).public_ip_address)
-            req_url = "http://" + str(self.publicIP) + ":8080/cloudimagerecognition"
-            r = requests.get(req_url)
-        except:
-            if self.publicIP == "":
-                print "check busy error: no public ip"
-            print "check busy connection error"
-            return 'busy'
 
         if str(r.text) == 'true':
             status = 'busy'
