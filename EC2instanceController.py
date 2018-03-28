@@ -210,6 +210,7 @@ class EC2Instance(object):
         return self.state
 
     def check_busy(self):
+
         try:
             if str(self.publicIP) == "":
                 self.publicIP = str(boto3.resource('ec2').Instance(self.iid).public_ip_address)
