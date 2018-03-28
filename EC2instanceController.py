@@ -8,22 +8,24 @@ import math
 class EC2InstanceController(object):
     # A client to manage Amazon EC2 instances
 
-    def __init__(self, ami):
+    def __init__(self, ami, max_instances):
         # AWS EC2 SDK client
         self.ec2 = boto3.client('ec2')
 
         # AWS image id
         self.image_id = ami
 
+        self.max_allowed = max_instances
+
         # instance type
         self.instance_type = 't2.micro'
 
         # key name
-        self.key_name = 'aws-ec2'
+        self.key_name = 'Cloud_Project'
 
         # security groups
         # sg_default = 'sg-389dd947'
-        sg546 = 'sg-53097a2a'
+        sg546 = 'sg-7f93b606'
         self.security_group_ids = [sg546]
 
         # list of active instances
@@ -32,6 +34,24 @@ class EC2InstanceController(object):
         self.idle_list = {}
 
     def run_instances(self, count):
+        # validate max allowed instances
+        try:
+            response = boto3.client('ec2').describe_instances()
+        except:
+            print ""
+        run_count = 0
+        for res in response['Reservations']:
+            for desc in res['Instances']:
+                if (desc['State']['Name'] == 'running') or (desc['State']['Name'] == 'pending') or (desc['State']['Name'] == 'shutting-down'):
+                    run_count += 1
+
+        if (count + run_count) > self.max_allowed:
+            count = self.max_allowed - run_count
+            if count <= 0: return
+
+        print 'starting ' + str(count) + ' instances...'
+        print ''
+
         # define network iterface
         net_int = {'AssociatePublicIpAddress' : True}
         net_ints = [net_int]
@@ -52,13 +72,13 @@ class EC2InstanceController(object):
 
         # dry run succeeded. Launch instances
         try:
-            tag = {'Key': 'Name', 'Value': 'backend-server-auto'}
+            tag = {'Key': 'Name', 'Value': 'app-tier-auto'}
             TagSpecification = {'ResourceType':'instance', 'Tags':[tag]}
             response = self.ec2.run_instances(ImageId=self.image_id, \
                                               InstanceType=self.instance_type, \
                                               KeyName=self.key_name, \
-                                              MinCount=count, \
-                                              MaxCount=count, \
+                                              MinCount=int(count), \
+                                              MaxCount=int(count), \
                                               TagSpecifications=[TagSpecification], \
                                               Monitoring={'Enabled': False}, \
                                               SecurityGroupIds=self.security_group_ids, \
@@ -66,7 +86,6 @@ class EC2InstanceController(object):
 
             for i in response['Instances']:
                 # define EC2Instance object
-                print(response['Instances'])
                 instance_id = i['InstanceId']
                 new_instance = EC2Instance(iid=instance_id, \
                                            privateIP=i['PrivateIpAddress'], \
@@ -134,10 +153,10 @@ class EC2Instance(object):
 
     def __init__(self, iid, privateIP, publicIP, state):
         self.iid = iid
-        self.privateIP = privateIP
-        self.publicIP = publicIP
+        self.privateIP = str(privateIP)
+        self.publicIP = str(publicIP)
         self.state = state
-        self.start_delay = 25
+        self.start_delay = 15
 
         self.idle_since = 0
         self.idle_total = 0
@@ -191,8 +210,17 @@ class EC2Instance(object):
         return self.state
 
     def check_busy(self):
-        req_url = "http://" + self.publicIP + ":5001/cloudimagerecognition"
-        r = requests.get(req_url)
+        try:
+            if str(self.publicIP) == "":
+                self.publicIP = str(boto3.resource('ec2').Instance(self.iid).public_ip_address)
+            req_url = "http://" + str(self.publicIP) + ":8080/cloudimagerecognition"
+            r = requests.get(req_url)
+        except:
+            if self.publicIP == "":
+                print "check busy error: no public ip"
+            print "check busy connection error"
+            return 'busy'
+
         if str(r.text) == 'true':
             status = 'busy'
         else:
