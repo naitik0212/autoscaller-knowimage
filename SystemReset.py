@@ -10,7 +10,7 @@ instance_ids = []
 for res in response['Reservations']:
     for desc in res['Instances']:
         if desc['State']['Name'] == 'running':
-            if (desc['InstanceId'] != 'i-0b41b525cfed8e15b') and (desc['InstanceId'] != 'i-0000f5562e7630fae'):
+            if (desc['InstanceId'] != 'i-0b41b525cfed8e15b') and (desc['InstanceId'] != 'i-03aebf8e44e116e87'):
                 instance_ids.append(desc['InstanceId'])
 if instance_ids:
     ec2.terminate_instances(InstanceIds=instance_ids)

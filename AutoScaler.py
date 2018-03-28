@@ -105,41 +105,29 @@ class AutoScaler(object):
             self.num_instances_to_start = 0
 
 
+class AutoScaler2(AutoScaler):
+    def __init__(self, ami, req_queue_url):
+        AutoScaler.__init__(self,ami, req_queue_url)
+        self.ec2ic = EC2InstanceController2(self.ami, self.max_instances_allowed)
 
+    def analyse(self):
+        # check the number of busy/idling instances
+        num_ready = self.num_instances_busy
 
+        self.num_instances_to_start = self.num_pending_requests - num_ready - self.num_instances_starting
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # # predict the number of requests that can be served in next 40 sec
-        # predicted = 2 * num_ready * (math.ceil(self.start_time_total / self.time_per_req))
-        #
-        # # check the number of starting instances and for each one, give their prediction
-        # for iid in self.ec2ic.starting_list:
-        #     ins = self.ec2ic.starting_list[iid]
-        #     predicted += int(math.ceil(ins.starting_since / self.time_per_req))
-        #
-        # # number of requests remaining to be handled in 40 sec is...
-        # num_req_later = self.num_pending_requests - predicted
-        #
-        # # calculate number of instances to start
-        # if num_req_later > 0:
-        #     self.num_instances_to_start = num_req_later
-        # else:
-        #     if self.num_pending_requests == 0:
-        #         self.num_instances_to_start = 0
-        #     else:
-        #         if predicted > (self.prediction_factor * self.num_pending_requests):
-        #             self.num_instances_to_start = 1
-        #         else:
-        #             self.num_instances_to_start = 0
+        if self.num_instances_to_start > 0:
+            # validate with respect to threshold
+            max_new_starts_allowed = self.max_instances_allowed - (num_ready + self.num_instances_starting)
+            self.num_instances_to_start = min(self.num_instances_to_start, max_new_starts_allowed)
+        elif self.num_instances_to_start < 0:
+            if len(self.ec2ic.busy_list)>0:
+                for iid in self.ec2ic.busy_list:
+                    if (num_ready-len(self.stop_iids)) > self.min_instances_allowed:
+                        self.stop_iids.append(iid)
+                    else:
+                        break
+                    self.num_instances_to_start += 1
+                    if self.num_instances_to_start == 0:
+                        break
+            self.num_instances_to_start = 0
