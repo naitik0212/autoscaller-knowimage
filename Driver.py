@@ -1,7 +1,7 @@
 from AutoScaler import *
 import time
 
-_ami = 'ami-b14b5ad1' # ami for backend-server
+_ami = 'ami-c54c5da5' # ami for app-tier-auto
 _req_queue_url = 'https://sqs.us-west-1.amazonaws.com/791943463301/image-request'
 _sleep_time = 2.0
 

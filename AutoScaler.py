@@ -1,6 +1,5 @@
 from EC2instanceController import *
 from SQSMonitor import *
-import math
 
 
 class AutoScaler(object):
