@@ -18,11 +18,11 @@ class EC2InstanceController(object):
         self.instance_type = 't2.micro'
 
         # key name
-        self.key_name = 'aws-ec2'
+        self.key_name = 'Cloud_Project'
 
         # security groups
         # sg_default = 'sg-389dd947'
-        sg546 = 'sg-53097a2a'
+        sg546 = 'sg-7f93b606'
         self.security_group_ids = [sg546]
 
     def run_instances(self, start_count):

@@ -1,8 +1,8 @@
 from AutoScaler import *
 import time
 
-_ami = 'ami-f4756494' # ami for app-tier-auto
-_req_queue_url = 'https://sqs.us-west-1.amazonaws.com/791943463301/image-request'
+_ami = 'ami-626b7a02' # ami for app-tier-auto Naitik's
+_req_queue_url = 'https://sqs.us-west-1.amazonaws.com/050256975407/image-request'
 _sleep_time = 2.0
 
 scaler = AutoScaler(ami=_ami, \
