@@ -9,17 +9,15 @@ class AutoScaler(object):
         self.req_queue_url = req_queue_url
 
         # thresholds and parameters
-        self.max_instances_allowed = 15
+        self.max_instances_allowed = 18
 
         # monitoring parameters
         self.num_pending_requests = 0
-        self.num_nonvisible_requests = 0
         self.num_instances_busy = 0
         self.num_instances_starting = 0
 
         # analyse and compute parameters
         self.num_instances_to_start = 0
-        self.terminate_all = False
 
         # components
         self.ec2ic = EC2InstanceController(self.ami, self.max_instances_allowed)
@@ -36,9 +34,6 @@ class AutoScaler(object):
 
         # read the number of pending requests
         self.num_pending_requests = self.sqsm.num_messages()
-
-        # read the number of non visible requests
-        self.num_nonvisible_requests = self.sqsm.num_messages_not_visible()
 
         # read the number of instances starting
         self.num_instances_starting = self.ec2ic.get_numStarting()
@@ -60,16 +55,8 @@ class AutoScaler(object):
         max_new_starts_allowed = self.max_instances_allowed - (num_ready)
         self.num_instances_to_start = min(self.num_instances_to_start, max_new_starts_allowed)
 
-        if (self.num_pending_requests == 0) and (self.num_nonvisible_requests < 5):
-            self.terminate_all = True
-        else:
-            self.terminate_all = False
-
     def execute(self):
         # start instances
         if self.num_instances_to_start > 0:
             self.ec2ic.run_instances(self.num_instances_to_start)
             self.num_instances_to_start = 0
-        #terminate instances
-        if self.terminate_all:
-            self.ec2ic.terminate_all()

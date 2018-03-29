@@ -25,9 +25,6 @@ class EC2InstanceController(object):
         sg546 = 'sg-53097a2a'
         self.security_group_ids = [sg546]
 
-        # list of instances started
-        self.instances = []
-
     def run_instances(self, start_count):
         # validate max allowed instances
         try:
@@ -81,22 +78,8 @@ class EC2InstanceController(object):
                                               SecurityGroupIds=self.security_group_ids, \
                                               DryRun=False)
 
-            # create a list of instances started
-            for instance in response['Instances']:
-                self.instances.append(str(instance['InstanceId']))
-
         except ClientError as e:
             print(e)
-
-    def terminate_all(self):
-        terminate_list = []
-        for iid in self.instances:
-            state = boto3.resource('ec2').Instance(iid).state['Name']
-            if (state == 'running') or (state == 'pending'):
-                terminate_list.append(iid)
-        if terminate_list:
-            self.terminate(terminate_list)
-        self.instances = []
 
     def terminate(self, instance_ids):
         # stop instances of given instance ids
