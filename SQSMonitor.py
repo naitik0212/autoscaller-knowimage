@@ -1,5 +1,5 @@
 import boto3
-
+#Continuously Monitor the SQS Queue
 
 class SQSMonitor(object):
     # A client to monitor Amazon SQS
