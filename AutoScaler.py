@@ -9,7 +9,7 @@ class AutoScaler(object):
         self.req_queue_url = req_queue_url
 
         # thresholds and parameters
-        self.max_instances_allowed = 18
+        self.max_instances_allowed = 19
 
         # monitoring parameters
         self.num_pending_requests = 0
@@ -56,7 +56,7 @@ class AutoScaler(object):
         self.num_instances_to_start = min(self.num_instances_to_start, max_new_starts_allowed)
 
     def execute(self):
-        # start instances
+        # start instances to spawn
         if self.num_instances_to_start > 0:
             self.ec2ic.run_instances(self.num_instances_to_start)
             self.num_instances_to_start = 0
