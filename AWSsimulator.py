@@ -13,13 +13,13 @@ net_ints = [net_int]
 
 # do a dry run first to check permissions
 try:
-    response = ec2.run_instances(ImageId='ami-a8a5b3c8', \
-                                      InstanceType='t2.micro', \
+    response = ec2.run_instances(ImageId='**', \
+                                      InstanceType='t2fmicro', \
                                       KeyName='Cloud_Project', \
                                       MinCount=count, \
                                       MaxCount=count, \
                                       Monitoring={'Enabled': False}, \
-                                      SecurityGroupIds=['sg-7f93b606'], \
+                                      SecurityGroupIds=['**'], \
                                       DryRun=False)
 except ClientError as e:
     raise
