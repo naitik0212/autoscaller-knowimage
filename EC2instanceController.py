@@ -21,9 +21,9 @@ class EC2InstanceController(object):
         self.key_name = 'Cloud_Project'
 
         # security groups
-        # sg_default = 'sg-389dd947'
-        sg546 = 'sg-7f93b606'
-        self.security_group_ids = [sg546]
+        # sg_default = 'sg-*****'
+        sg546 = 'sg-***'
+        self.security_group_ids = [***]
 
     def run_instances(self, start_count):
         # validate max allowed instances
